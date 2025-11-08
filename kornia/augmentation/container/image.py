@@ -189,17 +189,28 @@ class ImageSequential(ImageSequentialBase, ImageModuleForSequentialMixIn):
         mix_indices = self.get_mix_augmentation_indices(self.named_children())
         # kick out the mix augmentations
         multinomial_weights[mix_indices] = 0
-        indices = torch.multinomial(
-            multinomial_weights,
-            num_samples,
-            # enable replacement if non-mix augmentation is less than required
-            replacement=num_samples > multinomial_weights.sum().item(),
-        )
+
+        # Check if all weights are zero (i.e., only mix augmentations exist)
+        if multinomial_weights.sum() == 0:
+            # No non-mix augmentations available, use empty indices
+            # Mix augmentations will be handled separately below
+            indices = torch.tensor([], dtype=torch.long)
+        else:
+            indices = torch.multinomial(
+                multinomial_weights,
+                num_samples,
+                # enable replacement if non-mix augmentation is less than required
+                replacement=num_samples > multinomial_weights.sum().item(),
+            )
 
         mix_added = False
         if with_mix and len(mix_indices) != 0:
+            if len(indices) == 0:
+                # Only mix augmentations exist, pick one directly
+                indices = torch.multinomial((~multinomial_weights.bool()).float(), 1)
+                mix_added = True
             # Make the selection fair.
-            if (torch.rand(1) < ((len(mix_indices) + len(indices)) / len(self))).item():
+            elif (torch.rand(1) < ((len(mix_indices) + len(indices)) / len(self))).item():
                 indices[-1] = torch.multinomial((~multinomial_weights.bool()).float(), 1)
                 indices = indices[torch.randperm(len(indices))]
                 mix_added = True

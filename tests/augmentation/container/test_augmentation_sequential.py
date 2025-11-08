@@ -59,6 +59,39 @@ class TestAugmentationSequential:
         assert out.shape[-3:] == inp.shape[-3:]
         reproducibility_test(inp, aug)
 
+    def test_only_mix_augmentations(self, device, dtype):
+        """Test for issue #3300: AugmentationSequential with only mix augmentations should not crash."""
+        inp = torch.randn(4, 3, 32, 32, device=device, dtype=dtype)
+        labels = torch.randint(0, 10, (4,), device=device)
+
+        # Test with only MixUp
+        aug_mixup = K.AugmentationSequential(
+            K.RandomMixUpV2(p=1.0), data_keys=["input", "class"], random_apply=True, random_apply_weights=[1.0]
+        )
+        out_img, out_labels = aug_mixup(inp, labels)
+        assert out_img.shape == inp.shape
+        assert out_labels.shape[0] == labels.shape[0]
+
+        # Test with only CutMix
+        aug_cutmix = K.AugmentationSequential(
+            K.RandomCutMixV2(p=1.0), data_keys=["input", "class"], random_apply=True, random_apply_weights=[1.0]
+        )
+        out_img, out_labels = aug_cutmix(inp, labels)
+        assert out_img.shape == inp.shape
+        assert out_labels.shape[0] == labels.shape[0]
+
+        # Test with both MixUp and CutMix (original bug scenario)
+        aug_both = K.AugmentationSequential(
+            K.RandomMixUpV2(p=1.0),
+            K.RandomCutMixV2(p=1.0),
+            data_keys=["input", "class"],
+            random_apply=True,
+            random_apply_weights=[0.5, 0.5],
+        )
+        out_img, out_labels = aug_both(inp, labels)
+        assert out_img.shape == inp.shape
+        assert out_labels.shape[0] == labels.shape[0]
+
     def test_video(self, device, dtype):
         input = torch.randn(2, 3, 5, 6, device=device, dtype=dtype)[None]
         bbox = torch.tensor([[[1.0, 1.0], [2.0, 1.0], [2.0, 2.0], [1.0, 2.0]]], device=device, dtype=dtype).expand(
