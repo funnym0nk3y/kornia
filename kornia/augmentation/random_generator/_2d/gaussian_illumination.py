@@ -103,6 +103,11 @@ class GaussianIlluminationGenerator(RandomGeneratorBase):
         _common_param_check(batch_size, same_on_batch)
         _device, _dtype = self.device, self.dtype
 
+        # Short-circuit when the per-sample `to_apply` mask picks zero samples: the call to
+        # `normalize_min_max` below would otherwise fail on a zero-batch tensor (issue #3703).
+        if batch_size == 0:
+            return {"gradient": torch.empty((0, channels, height, width), device=_device, dtype=_dtype)}
+
         # TODO: check whether we need generate all the parameters at once
 
         gain_factor = _adapted_rsampling((batch_size, 1, 1, 1), self.gain_sampler, same_on_batch)

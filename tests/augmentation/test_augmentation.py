@@ -4164,6 +4164,15 @@ class TestRandomGaussianIllumination(BaseTester):
         output_tensor = transform(input_tensor)
         self.assert_close(output_tensor[0], output_tensor[1])
 
+    def test_empty_to_apply(self, device, dtype):
+        # Regression test for https://github.com/kornia/kornia/issues/3703
+        input_tensor = torch.rand(2, 3, 16, 16, device=device, dtype=dtype)
+        transform = RandomGaussianIllumination(gain=(0.02, 0.15), p=0.15)
+        for seed in range(40):
+            torch.manual_seed(seed)
+            output_tensor = transform(input_tensor)
+            assert output_tensor.shape == input_tensor.shape
+
     @pytest.mark.slow
     def test_dynamo(self, device, dtype, torch_optimizer):
         input_tensor = torch.ones(1, 3, 3, 3, device=device, dtype=dtype) * 0.5
@@ -4303,6 +4312,15 @@ class TestRandomLinearCornerIllumination(BaseTester):
         transform = RandomLinearCornerIllumination(p=1.0, same_on_batch=True)
         output_tensor = transform(input_tensor)
         self.assert_close(output_tensor[0], output_tensor[1])
+
+    def test_empty_to_apply(self, device, dtype):
+        # Regression test for https://github.com/kornia/kornia/issues/3703
+        input_tensor = torch.rand(2, 3, 16, 16, device=device, dtype=dtype)
+        transform = RandomLinearCornerIllumination(gain=(0.02, 0.15), p=0.15)
+        for seed in range(40):
+            torch.manual_seed(seed)
+            output_tensor = transform(input_tensor)
+            assert output_tensor.shape == input_tensor.shape
 
 
 class TestRandomChannelDropout(BaseTester):
